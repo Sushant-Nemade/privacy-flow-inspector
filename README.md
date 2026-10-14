@@ -1,6 +1,7 @@
 # Privacy Flow Inspector
 
 [![CI](https://github.com/Sushant-Nemade/privacy-flow-inspector/actions/workflows/ci.yml/badge.svg)](https://github.com/Sushant-Nemade/privacy-flow-inspector/actions/workflows/ci.yml)
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Privacy%20Flow%20Inspector-purple?logo=github)](https://github.com/marketplace/actions/privacy-flow-inspector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 **Which personal data leaves the browser, who receives it, and how?**
@@ -12,7 +13,9 @@ into first and third parties, applies your policy and gives an **APPROVE / REVIE
 for CI. It works offline. Reports contain **no raw personal data**, and it can export a redacted HAR
 that is safe to attach to a ticket.
 
-> Status: v0.1.0, an alpha release. Tested on Windows, Linux and macOS, including a demo that CI
+> Status: [v0.1.0](https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.1.0), an alpha
+> release listed on the [GitHub Marketplace](https://github.com/marketplace/actions/privacy-flow-inspector).
+> Tested on Windows, Linux and macOS, including a demo that CI
 > re-records with real Chromium on every run. Findings are technical evidence for a privacy review,
 > not legal advice or a GDPR compliance verdict.
 
