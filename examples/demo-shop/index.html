@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Demo Health Shop (fictional)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+  <!-- Fictional fixture. Every third-party call below is a deliberate privacy problem for the scanner to find. -->
+  <h1>Demo Health Shop</h1>
+  <form id="signup">
+    <label>Full name <input name="full_name" required></label>
+    <label>Email <input name="email" type="email" required></label>
+    <label>Phone <input name="phone" required></label>
+    <label>IBAN <input name="iban" required></label>
+    <label>Health insurance number <input name="kvnr" required></label>
+    <label>Diagnosis (ICD-10) <input name="diagnosis" required></label>
+    <button type="submit">Create account</button>
+  </form>
+  <p id="status" role="status"></p>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "privacy-flow-inspector"
+version = "0.1.0"
+description = "Local privacy gate for recorded web traffic: which personal data leaves the browser, to whom, with redacted evidence."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "Sushant Nemade" }]
+keywords = ["privacy", "gdpr", "har", "pii", "tracking", "sarif", "playwright", "data-protection"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Legal Industry",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
+dependencies = ["publicsuffixlist>=1.0"]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2",
+    "mypy>=1.13",
+    "pip-audit>=2.7",
+    "playwright>=1.48",
+    "pytest>=8.3",
+    "python-stdnum>=1.20",
+    "ruff>=0.8",
+    "twine>=6",
+]
+
+[project.scripts]
+privacy-flow-inspector = "privacy_flow_inspector.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Sushant-Nemade/privacy-flow-inspector"
+Issues = "https://github.com/Sushant-Nemade/privacy-flow-inspector/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/privacy_flow_inspector"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src",
+    "tests",
+    "examples",
+    "scripts",
+    "action.yml",
+    "action-requirements.txt",
+    "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF", "C4"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S311", "S324", "S603", "S607"]
+"scripts/**" = ["S603", "S607"]
+
+[tool.mypy]
+strict = true
+files = ["src"]
+python_version = "3.11"
+
+[[tool.mypy.overrides]]
+module = ["publicsuffixlist"]
+ignore_missing_imports = true

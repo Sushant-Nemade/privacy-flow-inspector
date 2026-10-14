@@ -1,0 +1,87 @@
+name: Privacy Flow Inspector
+description: "Find personal data leaving the browser in recorded HAR traffic: who receives it, how, with redacted evidence."
+author: Sushant Nemade
+branding:
+  icon: eye-off
+  color: purple
+
+inputs:
+  har:
+    description: HAR file(s) to inspect. A path or a glob such as test-results/**/*.har.
+    required: true
+  config:
+    description: Optional TOML config with first-party domains, test personas, approved recipients and waivers.
+    default: ""
+  fail-on:
+    description: Decision that fails the step (reject, review or never).
+    default: reject
+  redact:
+    description: Also write redacted copies of the HAR files (true or false).
+    default: "true"
+  output-dir:
+    description: Directory for report.json, report.sarif, summary.md and redacted HAR files.
+    default: privacy-flow-reports
+
+outputs:
+  decision:
+    description: approve, review or reject (error if no report was produced).
+    value: ${{ steps.scan.outputs.decision }}
+  sarif:
+    description: Path to the SARIF report.
+    value: ${{ steps.scan.outputs.sarif }}
+
+runs:
+  using: composite
+  steps:
+    - id: python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      with:
+        python-version: "3.13"
+        update-environment: false
+
+    - id: scan
+      shell: bash
+      env:
+        PYTHON: ${{ steps.python.outputs.python-path }}
+        ACTION_PATH: ${{ github.action_path }}
+        INPUT_HAR: ${{ inputs.har }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_REDACT: ${{ inputs.redact }}
+        OUTPUT_DIR: ${{ inputs.output-dir }}
+      run: |
+        set -u
+        case "$INPUT_REDACT" in
+          true|false) ;;
+          *) echo "::error title=Privacy Flow Inspector::input 'redact' must be 'true' or 'false'"; exit 2 ;;
+        esac
+        shopt -s globstar nullglob
+        # Word splitting is intended here so that a glob input expands to several files.
+        # shellcheck disable=SC2206
+        files=($INPUT_HAR)
+        if [ "${#files[@]}" -eq 0 ]; then
+          echo "::error title=Privacy Flow Inspector::no HAR file matched '$INPUT_HAR'"
+          exit 2
+        fi
+        venv="$RUNNER_TEMP/privacy-flow-inspector-venv"
+        "$PYTHON" -m venv "$venv"
+        if [ -x "$venv/bin/python" ]; then py="$venv/bin/python"; else py="$venv/Scripts/python.exe"; fi
+        "$py" -m pip install --disable-pip-version-check --quiet --require-hashes --no-deps \
+          -r "$ACTION_PATH/action-requirements.txt"
+        mkdir -p "$OUTPUT_DIR"
+        args=(scan "${files[@]}" --fail-on "$INPUT_FAIL_ON"
+          --json "$OUTPUT_DIR/report.json" --sarif "$OUTPUT_DIR/report.sarif" --markdown "$OUTPUT_DIR/summary.md")
+        if [ -n "$INPUT_CONFIG" ]; then args+=(--config "$INPUT_CONFIG"); fi
+        if [ "$INPUT_REDACT" = "true" ]; then args+=(--redact-dir "$OUTPUT_DIR/redacted"); fi
+        set +e
+        PYTHONPATH="$ACTION_PATH/src" "$py" -m privacy_flow_inspector "${args[@]}"
+        status=$?
+        set -e
+        if [ -f "$OUTPUT_DIR/summary.md" ]; then cat "$OUTPUT_DIR/summary.md" >> "$GITHUB_STEP_SUMMARY"; fi
+        decision=$("$py" -c 'import json,sys; print(json.load(open(sys.argv[1]))["decision"]["value"])' \
+          "$OUTPUT_DIR/report.json" 2>/dev/null || echo error)
+        {
+          echo "decision=$decision"
+          echo "sarif=$OUTPUT_DIR/report.sarif"
+        } >> "$GITHUB_OUTPUT"
+        exit "$status"

@@ -1,0 +1,35 @@
+# Example configuration for the fictional demo shop. Persona values are invented test data only.
+version = 1
+
+[gate]
+reject_at = "high"
+review_at = "low"
+
+[first_party]
+domains = ["shop.example"]
+
+[[persona]]
+label = "Test user email"
+value = "jane.test@example.com"
+category = "contact"
+
+[[persona]]
+label = "Test user phone"
+value = "+49 151 23456789"
+category = "contact"
+
+[[persona]]
+label = "Test user name"
+value = "Jane Test"
+category = "identity"
+
+# Contracted processors (GDPR Art. 28) may receive the listed categories.
+[[allow]]
+recipient = "payments-processor.test"
+categories = ["financial", "contact"]
+reason = "Fictional payment processor with a signed data processing agreement."
+
+[labels]
+"analytics-vendor.test" = "Analytics vendor (fictional)"
+"pixel-tracker.test" = "Ad pixel (fictional)"
+"session-cam.test" = "Session replay (fictional)"
