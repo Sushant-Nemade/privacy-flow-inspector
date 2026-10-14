@@ -55,17 +55,21 @@ runs:
           true|false) ;;
           *) echo "::error title=Privacy Flow Inspector::input 'redact' must be 'true' or 'false'"; exit 2 ;;
         esac
-        shopt -s globstar nullglob
-        # Word splitting is intended here so that a glob input expands to several files.
-        # shellcheck disable=SC2206
-        files=($INPUT_HAR)
+        venv="$RUNNER_TEMP/privacy-flow-inspector-venv"
+        "$PYTHON" -m venv "$venv"
+        if [ -x "$venv/bin/python" ]; then py="$venv/bin/python"; else py="$venv/Scripts/python.exe"; fi
+        # Python expands the pattern so ** works on every runner, including bash 3.2 on macOS.
+        files=()
+        while IFS= read -r match; do
+          match="${match%$'\r'}"
+          if [ -n "$match" ]; then files+=("$match"); fi
+        done < <("$py" -c 'import glob, pathlib, sys
+        found = sorted(pathlib.Path(p).as_posix() for p in glob.glob(sys.argv[1], recursive=True))
+        sys.stdout.buffer.write("".join(f + "\n" for f in found).encode())' "$INPUT_HAR")
         if [ "${#files[@]}" -eq 0 ]; then
           echo "::error title=Privacy Flow Inspector::no HAR file matched '$INPUT_HAR'"
           exit 2
         fi
-        venv="$RUNNER_TEMP/privacy-flow-inspector-venv"
-        "$PYTHON" -m venv "$venv"
-        if [ -x "$venv/bin/python" ]; then py="$venv/bin/python"; else py="$venv/Scripts/python.exe"; fi
         "$py" -m pip install --disable-pip-version-check --quiet --require-hashes --no-deps \
           -r "$ACTION_PATH/action-requirements.txt"
         mkdir -p "$OUTPUT_DIR"
