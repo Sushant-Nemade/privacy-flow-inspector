@@ -3,6 +3,17 @@
 All notable changes are recorded here. The project follows [Semantic Versioning](https://semver.org/);
 while the major version is 0, minor releases may change behaviour.
 
+## [0.1.1] - 2026-10-15
+
+### Added
+
+- Published on PyPI: `python -m pip install privacy-flow-inspector`. Releases are uploaded by the
+  release workflow through PyPI trusted publishing, without a stored token.
+
+### Changed
+
+- README links are absolute so they also work on the PyPI project page.
+
 ## [0.1.0] - 2026-10-14
 
 First public release.
@@ -29,4 +40,5 @@ First public release.
 - Binary payloads (protobuf, compressed bodies) are not decoded.
 - Findings are technical evidence for a privacy review, not legal advice.
 
+[0.1.1]: https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.1.0

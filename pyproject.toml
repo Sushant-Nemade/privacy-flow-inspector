@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "privacy-flow-inspector"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local privacy gate for recorded web traffic: which personal data leaves the browser, to whom, with redacted evidence."
 readme = "README.md"
 license = "MIT"
@@ -45,7 +45,10 @@ privacy-flow-inspector = "privacy_flow_inspector.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Sushant-Nemade/privacy-flow-inspector"
+Source = "https://github.com/Sushant-Nemade/privacy-flow-inspector"
+Changelog = "https://github.com/Sushant-Nemade/privacy-flow-inspector/blob/main/CHANGELOG.md"
 Issues = "https://github.com/Sushant-Nemade/privacy-flow-inspector/issues"
+"GitHub Marketplace" = "https://github.com/marketplace/actions/privacy-flow-inspector"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/privacy_flow_inspector"]

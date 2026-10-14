@@ -2,7 +2,8 @@
 
 [![CI](https://github.com/Sushant-Nemade/privacy-flow-inspector/actions/workflows/ci.yml/badge.svg)](https://github.com/Sushant-Nemade/privacy-flow-inspector/actions/workflows/ci.yml)
 [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Privacy%20Flow%20Inspector-purple?logo=github)](https://github.com/marketplace/actions/privacy-flow-inspector)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/privacy-flow-inspector)](https://pypi.org/project/privacy-flow-inspector/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/Sushant-Nemade/privacy-flow-inspector/blob/main/LICENSE)
 
 **Which personal data leaves the browser, who receives it, and how?**
 
@@ -13,8 +14,9 @@ into first and third parties, applies your policy and gives an **APPROVE / REVIE
 for CI. It works offline. Reports contain **no raw personal data**, and it can export a redacted HAR
 that is safe to attach to a ticket.
 
-> Status: [v0.1.0](https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.1.0), an alpha
-> release listed on the [GitHub Marketplace](https://github.com/marketplace/actions/privacy-flow-inspector).
+> Status: [v0.1.1](https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.1.1), an alpha
+> release on [PyPI](https://pypi.org/project/privacy-flow-inspector/) and the
+> [GitHub Marketplace](https://github.com/marketplace/actions/privacy-flow-inspector).
 > Tested on Windows, Linux and macOS, including a demo that CI
 > re-records with real Chromium on every run. Findings are technical evidence for a privacy review,
 > not legal advice or a GDPR compliance verdict.
@@ -35,8 +37,10 @@ same decision model, policy style and report formats.
 
 ## Quick start
 
+Install from [PyPI](https://pypi.org/project/privacy-flow-inspector/) (Python 3.11+) and scan a HAR file:
+
 ```powershell
-python -m pip install https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/download/v0.1.0/privacy_flow_inspector-0.1.0-py3-none-any.whl
+python -m pip install privacy-flow-inspector
 
 privacy-flow-inspector scan session.har --config pfi.toml `
   --json reports/report.json --sarif reports/report.sarif --markdown reports/summary.md `
@@ -60,10 +64,10 @@ The inspector detects this and reports a blocking `body-not-recorded` gap instea
 
 ### Try the fictional demo
 
-[examples/demo-shop](examples/demo-shop) is a deliberately leaky, fictional health shop.
-[scripts/record_demo.py](scripts/record_demo.py) drives it with real Chromium and answers every
+[examples/demo-shop](https://github.com/Sushant-Nemade/privacy-flow-inspector/tree/main/examples/demo-shop) is a deliberately leaky, fictional health shop.
+[scripts/record_demo.py](https://github.com/Sushant-Nemade/privacy-flow-inspector/blob/main/scripts/record_demo.py) drives it with real Chromium and answers every
 request locally, so nothing leaves the machine. The recorded capture is committed as
-[examples/recorded/demo-shop.har](examples/recorded/demo-shop.har).
+[examples/recorded/demo-shop.har](https://github.com/Sushant-Nemade/privacy-flow-inspector/blob/main/examples/recorded/demo-shop.har).
 
 ```powershell
 privacy-flow-inspector scan examples/recorded/demo-shop.har --config examples/pfi.toml
@@ -159,7 +163,7 @@ third-party URL over HTTP is *critical*.
 
 ## Configuration
 
-See [examples/pfi.toml](examples/pfi.toml):
+See [examples/pfi.toml](https://github.com/Sushant-Nemade/privacy-flow-inspector/blob/main/examples/pfi.toml):
 
 ```toml
 version = 1
@@ -280,6 +284,6 @@ $env:PFI_RECORD = "1"; uv run --frozen --extra dev pytest -q tests/test_record.p
 
 ## License
 
-[MIT](LICENSE) © 2026 Sushant Nemade. See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+[MIT](https://github.com/Sushant-Nemade/privacy-flow-inspector/blob/main/LICENSE) © 2026 Sushant Nemade. See [SECURITY.md](https://github.com/Sushant-Nemade/privacy-flow-inspector/blob/main/SECURITY.md) for vulnerability reporting.
 Recipient grouping uses [publicsuffixlist](https://pypi.org/project/publicsuffixlist/) (MPL-2.0)
 with the bundled Public Suffix List.
