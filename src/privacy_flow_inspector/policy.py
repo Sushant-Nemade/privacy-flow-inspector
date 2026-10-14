@@ -8,7 +8,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from privacy_flow_inspector.detectors import DETECTORS, Persona
+from privacy_flow_inspector.detectors import DETECTORS, OPT_IN, Persona
 from privacy_flow_inspector.model import Category, Decision, Finding, Gap, InspectorError, Severity
 from privacy_flow_inspector.recipients import site_of
 
@@ -41,6 +41,7 @@ class Config:
     allow: tuple[Allowance, ...] = ()
     waivers: tuple[Waiver, ...] = ()
     disabled: frozenset[str] = frozenset()
+    enabled: frozenset[str] = frozenset()
     labels: dict[str, str] = field(default_factory=dict)
 
 
@@ -171,13 +172,22 @@ def load_config(path: Path | None) -> Config:
             )
         )
 
-    detectors = _table(data, "detectors", {"disabled"})
+    detectors = _table(data, "detectors", {"disabled", "enabled"})
     disabled = detectors.get("disabled", [])
     if not isinstance(disabled, list) or not all(isinstance(d, str) for d in disabled):
         raise ConfigError("detectors.disabled must be a list of rule ids")
     unknown_rules = set(disabled) - set(DETECTORS)
     if unknown_rules:
         raise ConfigError(f"unknown rule ids in detectors.disabled: {', '.join(sorted(unknown_rules))}")
+    enabled = detectors.get("enabled", [])
+    if not isinstance(enabled, list) or not all(isinstance(d, str) for d in enabled):
+        raise ConfigError("detectors.enabled must be a list of rule ids")
+    not_opt_in = set(enabled) - OPT_IN
+    if not_opt_in:
+        raise ConfigError(
+            f"detectors.enabled accepts only opt-in rules ({', '.join(sorted(OPT_IN))}), "
+            f"not: {', '.join(sorted(not_opt_in))}"
+        )
 
     labels = data.get("labels", {})
     if not isinstance(labels, dict) or not all(isinstance(v, str) for v in labels.values()):
@@ -191,6 +201,7 @@ def load_config(path: Path | None) -> Config:
         allow=tuple(allow),
         waivers=tuple(waivers),
         disabled=frozenset(disabled),
+        enabled=frozenset(enabled) - frozenset(disabled),
         labels={site_of(k): v for k, v in labels.items()},
     )
 

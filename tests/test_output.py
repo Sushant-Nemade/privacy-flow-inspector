@@ -8,7 +8,7 @@ import pytest
 from conftest import DEMO_CONFIG, DEMO_HAR, DETECTED_VALUES, PERSONA_VALUES, entry
 
 from privacy_flow_inspector import output
-from privacy_flow_inspector.detectors import persona_variants
+from privacy_flow_inspector.detectors import DETECTORS, persona_variants
 from privacy_flow_inspector.engine import inspect
 from privacy_flow_inspector.model import Category, Finding, InspectorError, Severity
 from privacy_flow_inspector.policy import Config, load_config
@@ -104,3 +104,13 @@ def test_markdown_escapes_untrusted_values() -> None:
     markdown = output.to_markdown(report)
     assert "![x]" not in markdown and "<script>" not in markdown
     assert "\\<script\\>" in markdown
+
+
+def test_third_party_recipients_are_listed_without_findings() -> None:
+    report = inspect([DEMO_HAR], Config(disabled=frozenset(DETECTORS)), now=NOW).report
+    assert report.findings == []
+    markdown = output.to_markdown(report)
+    assert "### Third-party recipients" in markdown
+    assert "| `pixel-tracker.test` | " in markdown and "| none |" in markdown
+    assert "Enable `PFI-THIRD-PARTY-CONNECTION`" in markdown
+    assert "Third parties: " in output.to_text(report)

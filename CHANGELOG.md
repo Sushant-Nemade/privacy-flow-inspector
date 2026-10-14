@@ -3,6 +3,18 @@
 All notable changes are recorded here. The project follows [Semantic Versioning](https://semver.org/);
 while the major version is 0, minor releases may change behaviour.
 
+## [0.2.0] - 2026-10-15
+
+### Added
+
+- Reports list every third-party recipient with its request count, including recipients that
+  received no detected personal data. Found by scanning a real website that loaded Google Fonts:
+  the previous report approved it without naming Google at all.
+- Opt-in rule `PFI-THIRD-PARTY-CONNECTION` (`[detectors] enabled = [...]`): one finding per
+  third-party site for the visitor IP address every connection discloses, noting when a `Referer`
+  revealed the first-party page. Allowances and waivers apply as usual.
+- `privacy-flow-inspector rules` marks opt-in rules.
+
 ## [0.1.1] - 2026-10-15
 
 ### Added
@@ -40,5 +52,6 @@ First public release.
 - Binary payloads (protobuf, compressed bodies) are not decoded.
 - Findings are technical evidence for a privacy review, not legal advice.
 
+[0.2.0]: https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.2.0
 [0.1.1]: https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.1.0

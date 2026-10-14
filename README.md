@@ -14,7 +14,7 @@ into first and third parties, applies your policy and gives an **APPROVE / REVIE
 for CI. It works offline. Reports contain **no raw personal data**, and it can export a redacted HAR
 that is safe to attach to a ticket.
 
-> Status: [v0.1.1](https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.1.1), an alpha
+> Status: [v0.2.0](https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.2.0), an alpha
 > release on [PyPI](https://pypi.org/project/privacy-flow-inspector/) and the
 > [GitHub Marketplace](https://github.com/marketplace/actions/privacy-flow-inspector).
 > Tested on Windows, Linux and macOS, including a demo that CI
@@ -144,10 +144,22 @@ flowchart LR
 | `PFI-IDENTITY-FIELD` | identity | Name, birth-date or postal-address field |
 | `PFI-PRECISE-LOCATION` | location | Latitude/longitude with four or more decimals (about 11 m) |
 | `PFI-IP-ADDRESS` | online-identifier | Public IP in an IP field, or a whole-value IPv6 address |
+| `PFI-THIRD-PARTY-CONNECTION` (opt-in) | online-identifier | Any request to a third party. The recipient always receives the visitor's IP address and browser details, even when the content holds no personal data (web fonts, CDN scripts) |
 
 The test-persona detector gives the most reliable results. Use a dedicated test account in your
 end-to-end tests, list its values in the config, and every encoded or hashed copy is found with
 essentially no false positives.
+
+Every report lists all third-party recipients and their request counts, including those that
+received no detected personal data. To gate on those connections too, enable the opt-in rule:
+
+```toml
+[detectors]
+enabled = ["PFI-THIRD-PARTY-CONNECTION"]
+```
+
+Approve a recipient you have a legal basis for with an `[[allow]]` entry for the
+`online-identifier` category.
 
 ### Severity
 
@@ -257,6 +269,7 @@ requests. Do not upload raw HAR files as workflow artifacts; upload the redacted
 | Check | How |
 |---|---|
 | Real browser traffic | CI re-records the demo with Playwright Chromium on every run and requires exactly the expected data flows |
+| Real website | A Chromium capture of the author's live portfolio site showed APPROVE with no findings, while the page loaded Google Fonts. That gap led to the third-party recipient list and the opt-in connection rule; after the fonts were self-hosted, the same check with the rule enabled shows APPROVE with zero third parties |
 | Leak-free outputs | A test checks that no persona value, nor any of its encoded or hashed forms, appears in the JSON, SARIF, Markdown, text or redacted HAR |
 | Checksums | Steuer-ID, IBAN and Luhn compared with `python-stdnum` on 100,000+ random numbers. The only difference is numbers with three identical digits in a row, which the official Steuer-ID rules forbid and `stdnum` does not check. KVNR uses the published example `A123456780`. |
 | False positives | A corpus of common tracking values (timestamps, UUIDs, ETags, version numbers, private IPs, invalid checksums) must produce no findings |

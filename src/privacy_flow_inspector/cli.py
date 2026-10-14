@@ -7,7 +7,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from privacy_flow_inspector import __version__, output
-from privacy_flow_inspector.detectors import DETECTORS
+from privacy_flow_inspector.detectors import DETECTORS, OPT_IN
 from privacy_flow_inspector.engine import inspect
 from privacy_flow_inspector.model import Decision, InspectorError, clean_text
 from privacy_flow_inspector.policy import load_config
@@ -61,7 +61,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "rules":
         for detector in DETECTORS.values():
             category = detector.category.value if detector.category else "(persona)"
-            print(f"{detector.id:22} {category:18} {detector.confidence:10} {detector.title}")
+            opt_in = " (opt-in)" if detector.id in OPT_IN else ""
+            print(f"{detector.id:27} {category:18} {detector.confidence:10} {detector.title}{opt_in}")
         return EXIT_OK
     try:
         names = [path.name for path in args.har]

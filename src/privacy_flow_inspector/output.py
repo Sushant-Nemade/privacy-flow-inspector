@@ -302,6 +302,35 @@ def to_markdown(report: Report, max_findings: int = 40) -> str:
             party = "first" if flow.first_party else "**third**"
             lines.append(f"| {name} | {party} | " + " | ".join(row) + " |")
         lines.append("")
+    third = [flow for flow in report.flows if not flow.first_party]
+    if third:
+        lines += [
+            "### Third-party recipients",
+            "",
+            "| Recipient | Requests | Personal data found in request content |",
+            "|---|---:|---|",
+        ]
+        for flow in third:
+            found = sorted(
+                {
+                    f.category.value
+                    for f in report.findings
+                    if f.recipient == flow.recipient and f.channel != "connection"
+                }
+            )
+            name = code(flow.recipient, 60) + (f" {md(flow.label, 40)}" if flow.label else "")
+            lines.append(f"| {name} | {flow.requests} | {', '.join(md(c, 30) for c in found) or 'none'} |")
+        gated = any(f.channel == "connection" for f in report.findings)
+        lines += [
+            "",
+            "_Each third party also receives the visitor's IP address and browser details with every request. "
+            + (
+                "These connections are reported as `PFI-THIRD-PARTY-CONNECTION` findings._"
+                if gated
+                else "Enable `PFI-THIRD-PARTY-CONNECTION` to gate on this._"
+            ),
+            "",
+        ]
     if report.findings:
         lines += [
             "### Findings",
@@ -350,6 +379,9 @@ def to_text(report: Report, max_findings: int = 15) -> str:
         f"| personas: {report.personas}",
         "Findings: " + ", ".join(f"{label} {count}" for label, count in counts.items()),
     ]
+    if third:
+        shown = ", ".join(f"{clean_text(f.recipient, 60)} ({f.requests})" for f in third[:10])
+        lines.append(f"Third parties: {shown}" + (f" and {len(third) - 10} more" if len(third) > 10 else ""))
     for finding in report.findings[:max_findings]:
         status = _status(finding)
         lines.append(

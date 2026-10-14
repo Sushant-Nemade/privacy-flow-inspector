@@ -45,6 +45,8 @@ def test_example_config_loads() -> None:
         ("[[waivers]]\nid = 'PFI-NOPE'\nreason = 'long enough reason'\nexpires = 2026-12-31", "unknown rule"),
         ("[[waivers]]\nid = 'PFI-EMAIL'\nreason = 'long enough reason'\nexpires = '2026-12-31'", "TOML date"),
         ("[detectors]\ndisabled = ['PFI-NOPE']", "unknown rule"),
+        ("[detectors]\nenabled = ['PFI-EMAIL']", "only opt-in"),
+        ("[detectors]\nenabled = 'PFI-THIRD-PARTY-CONNECTION'", "list of rule ids"),
         ("[first_party]\ndomains = [1]", "list of domain"),
         ("= broken", "invalid config TOML"),
     ],
@@ -52,6 +54,16 @@ def test_example_config_loads() -> None:
 def test_invalid_configs(tmp_path: Path, text: str, message: str) -> None:
     with pytest.raises(ConfigError, match=message):
         _config(tmp_path, text)
+
+
+def test_opt_in_rule_can_be_enabled_and_disabled_wins(tmp_path: Path) -> None:
+    enabled = _config(tmp_path, "[detectors]\nenabled = ['PFI-THIRD-PARTY-CONNECTION']")
+    assert enabled.enabled == {"PFI-THIRD-PARTY-CONNECTION"}
+    both = _config(
+        tmp_path,
+        "[detectors]\nenabled = ['PFI-THIRD-PARTY-CONNECTION']\ndisabled = ['PFI-THIRD-PARTY-CONNECTION']",
+    )
+    assert both.enabled == frozenset()
 
 
 def test_allowlist_matches_recipient_site_and_category() -> None:

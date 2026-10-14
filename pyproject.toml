@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "privacy-flow-inspector"
-version = "0.1.1"
+version = "0.2.0"
 description = "Local privacy gate for recorded web traffic: which personal data leaves the browser, to whom, with redacted evidence."
 readme = "README.md"
 license = "MIT"

@@ -7,7 +7,7 @@ from conftest import DEMO_CONFIG, DEMO_HAR, entry
 
 from privacy_flow_inspector.engine import inspect, severity_for
 from privacy_flow_inspector.model import Category, Decision, Severity
-from privacy_flow_inspector.policy import Config, Waiver, load_config
+from privacy_flow_inspector.policy import Allowance, Config, Waiver, load_config
 
 NOW = datetime(2026, 10, 14, 12, 0, tzinfo=UTC)
 
@@ -92,3 +92,55 @@ def test_waivers_and_fingerprints(har_factory) -> None:  # type: ignore[no-untyp
     assert finding.evidence[0].fingerprint == finding.evidence[1].fingerprint
     other = inspect([har], config, now=NOW, fingerprint_key=b"other").report
     assert other.findings[0].evidence[0].fingerprint != finding.evidence[0].fingerprint
+
+
+def _font_session(har_factory):  # type: ignore[no-untyped-def]
+    page = "https://www.site.example/"
+    return har_factory(
+        [
+            entry(page, _resourceType="document"),
+            entry("https://fonts.googleapis.com/css2?family=Archivo", headers=[("Referer", page)]),
+            entry("https://fonts.gstatic.com/s/a.woff2", headers=[("Referer", "https://fonts.googleapis.com/")]),
+            entry("https://fonts.gstatic.com/s/b.woff2"),
+        ]
+    )
+
+
+def test_connection_rule_is_opt_in(har_factory) -> None:  # type: ignore[no-untyped-def]
+    report = inspect([_font_session(har_factory)], Config(first_party=("site.example",)), now=NOW).report
+    assert report.findings == []
+    assert report.decision is Decision.APPROVE
+    assert {(f.recipient, f.requests) for f in report.flows if not f.first_party} == {
+        ("fonts.googleapis.com", 1),
+        ("gstatic.com", 2),
+    }
+
+
+def test_connection_rule_reports_each_third_party_once(har_factory) -> None:  # type: ignore[no-untyped-def]
+    config = Config(first_party=("site.example",), enabled=frozenset({"PFI-THIRD-PARTY-CONNECTION"}))
+    report = inspect([_font_session(har_factory)], config, now=NOW).report
+    found = {(f.recipient, f.severity, f.occurrences, f.channel) for f in report.findings}
+    assert found == {
+        ("fonts.googleapis.com", Severity.LOW, 1, "connection"),
+        ("gstatic.com", Severity.LOW, 2, "connection"),
+    }
+    assert report.decision is Decision.REVIEW
+    google = next(f for f in report.findings if f.recipient == "fonts.googleapis.com")
+    assert "which first-party page" in google.message
+    assert google.evidence[0].url == "https://fonts.googleapis.com/css2?family=..."
+    gstatic = next(f for f in report.findings if f.recipient == "gstatic.com")
+    assert "which first-party page" not in gstatic.message
+
+
+def test_connection_rule_respects_allowances(har_factory) -> None:  # type: ignore[no-untyped-def]
+    config = Config(
+        first_party=("site.example",),
+        enabled=frozenset({"PFI-THIRD-PARTY-CONNECTION"}),
+        allow=tuple(
+            Allowance(site, frozenset({Category.ONLINE_ID}), "Font CDN covered by a DPA.")
+            for site in ("fonts.googleapis.com", "gstatic.com")
+        ),
+    )
+    report = inspect([_font_session(har_factory)], config, now=NOW).report
+    assert all(f.allowed_reason for f in report.findings)
+    assert report.decision is Decision.APPROVE

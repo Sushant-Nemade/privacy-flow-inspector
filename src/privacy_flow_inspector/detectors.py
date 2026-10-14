@@ -105,8 +105,19 @@ DETECTORS: dict[str, Detector] = {
             "pattern",
             "A public IPv4 or IPv6 address sent as data, which is an online identifier under GDPR.",
         ),
+        Detector(
+            "PFI-THIRD-PARTY-CONNECTION",
+            "Visitor IP address (third-party connection)",
+            Category.ONLINE_ID,
+            "inherent",
+            "Opt-in. The browser contacted a third party, which always receives the visitor's IP address and "
+            "browser details, even when the request content holds no personal data (for example web fonts "
+            "or scripts loaded from a CDN). IP addresses are personal data under GDPR (CJEU C-582/14).",
+        ),
     )
 }
+# Rules that only run when listed in [detectors] enabled.
+OPT_IN = frozenset({"PFI-THIRD-PARTY-CONNECTION"})
 
 
 @dataclass(frozen=True)

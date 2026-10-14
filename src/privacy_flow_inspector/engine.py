@@ -6,7 +6,7 @@ import secrets
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from urllib.parse import parse_qsl, quote
+from urllib.parse import parse_qsl, quote, urlsplit
 
 from privacy_flow_inspector import __version__
 from privacy_flow_inspector.detectors import DETECTORS, Match, PersonaMatcher, detect
@@ -30,6 +30,7 @@ from privacy_flow_inspector.policy import Config, apply_policy, decide
 from privacy_flow_inspector.recipients import Recipients, site_of
 
 MAX_EVIDENCE = 5
+CONNECTION_RULE = "PFI-THIRD-PARTY-CONNECTION"
 
 
 @dataclass
@@ -127,12 +128,20 @@ def inspect(
     redactions: dict[str, set[str]] = {d: set(matcher.all_needles()) for d in displays}
     findings: dict[tuple[str, str, str, str, str], Finding] = {}
     flows: dict[str, Flow] = {}
+    first_requests: dict[str, Request] = {}
+    referred: set[str] = set()
 
     for request in requests:
         site = site_of(request.host)
         is_first = recipients.is_first_party(request.host)
         flow = flows.setdefault(site, Flow(site, recipients.label(request.host), is_first))
         flow.requests += 1
+        first_requests.setdefault(site, request)
+        if not is_first and any(
+            name.lower() == "referer" and recipients.is_first_party(urlsplit(value).hostname or "")
+            for name, value in request.headers
+        ):
+            referred.add(site)
         items, truncated = carriers(request)
         if truncated:
             gaps.append(
@@ -210,6 +219,54 @@ def inspect(
                         initiator=clean_text(request.initiator, 300) if request.initiator else None,
                     )
                 )
+
+    if CONNECTION_RULE in config.enabled:
+        for site, flow in flows.items():
+            if flow.first_party:
+                continue
+            request = first_requests[site]
+            scheme = request.parts.scheme.lower()
+            severity = severity_for(Category.ONLINE_ID, False, "connection", scheme)
+            flow.categories[Category.ONLINE_ID] = max(flow.categories.get(Category.ONLINE_ID, Severity.INFO), severity)
+            message = (
+                f"The browser made {flow.requests} request(s) to third-party recipient {site}. Every "
+                "connection discloses the visitor's IP address and browser details, which are personal data "
+                "under GDPR, even when the request content holds none."
+            )
+            if site in referred:
+                message += " Referer headers also told it which first-party page was being viewed."
+            if scheme == "http":
+                message += " The request was not encrypted (plain HTTP)."
+            message += " Self-host the resource, or confirm a legal basis and allow the recipient in the config."
+            findings[(CONNECTION_RULE, "", site, "connection", Category.ONLINE_ID.value)] = Finding(
+                rule_id=CONNECTION_RULE,
+                title=f"Visitor IP address sent to {site}",
+                category=Category.ONLINE_ID,
+                confidence=DETECTORS[CONNECTION_RULE].confidence,
+                severity=severity,
+                recipient=site,
+                recipient_label=flow.label,
+                first_party=False,
+                channel="connection",
+                message=message,
+                occurrences=flow.requests,
+                evidence=[
+                    Evidence(
+                        har=request.har,
+                        entry=request.index,
+                        method=request.method,
+                        url=_redacted_url(request, set()),
+                        channel="connection",
+                        key="client IP address",
+                        variant="connection",
+                        preview="not recorded in HAR",
+                        fingerprint=fingerprint(site),
+                        har_line=request.line,
+                        har_column=request.column,
+                        initiator=clean_text(request.initiator, 300) if request.initiator else None,
+                    )
+                ],
+            )
 
     ordered = sorted(
         findings.values(),
