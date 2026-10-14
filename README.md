@@ -26,6 +26,8 @@ Part of a small **software trust toolkit** with
 Gatekeeper checks what is **inside** an app; this tool checks what the app **sends out**. Both use the
 same decision model, policy style and report formats.
 
+![Job summary for the fictional demo shop: REJECT, with a data-flow map of which data categories reach each recipient](https://raw.githubusercontent.com/Sushant-Nemade/privacy-flow-inspector/main/docs/images/job-summary.png)
+
 ## Where it helps
 
 | Who | Situation | What they get |
