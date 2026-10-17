@@ -116,7 +116,7 @@ jobs:
           python - <<'EOF'
           import json, pathlib, sys
           sys.path.insert(0, "tests")
-          from test_engine import EXPECTED
+          from demo_expected import EXPECTED
           report = json.loads(pathlib.Path("privacy-flow-reports/report.json").read_text(encoding="utf-8"))
           found = {(f["rule_id"], f["recipient"], f["channel"], f["severity"],
                     "allowed" if f["allowed_reason"] else "open") for f in report["findings"]}

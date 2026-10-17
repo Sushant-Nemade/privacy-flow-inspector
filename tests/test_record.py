@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 from conftest import DEMO_CONFIG, ROOT
-from test_engine import EXPECTED
+from demo_expected import EXPECTED
 
 from privacy_flow_inspector.engine import inspect
 from privacy_flow_inspector.policy import load_config
