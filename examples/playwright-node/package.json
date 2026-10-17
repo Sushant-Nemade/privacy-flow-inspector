@@ -1,0 +1,12 @@
+{
+  "name": "privacy-flow-inspector-playwright-example",
+  "private": true,
+  "description": "Playwright Test fixture that records HAR files (including WebSocket messages) for Privacy Flow Inspector.",
+  "license": "MIT",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

@@ -18,6 +18,8 @@ EXPECTED = {
     ("PFI-DE-KVNR", "session-cam.test", "body", "high", "open"),
     ("PFI-HEALTH-FIELD", "session-cam.test", "body", "high", "open"),
     ("PFI-PERSONA", "analytics-vendor.test", "body", "medium", "open"),
+    ("PFI-PERSONA", "chat-widget.test", "websocket", "medium", "open"),
+    ("PFI-PERSONA", "replay-vendor.test", "body", "medium", "open"),
     ("PFI-IBAN", "payments-processor.test", "body", "high", "allowed"),
     ("PFI-PERSONA", "payments-processor.test", "body", "medium", "allowed"),
     ("PFI-DE-KVNR", "shop.example", "body", "low", "open"),
@@ -36,7 +38,7 @@ def test_demo_har_recorded_by_chromium() -> None:
     found = {(f.rule_id, f.recipient, f.channel, f.severity.label, _status(f)) for f in report.findings}
     assert found == EXPECTED
     assert report.decision is Decision.REJECT
-    assert report.requests == 10
+    assert report.requests == 12
     assert [g.code for g in report.gaps] == []
     pixel = next(f for f in report.findings if f.recipient == "pixel-tracker.test" and "email" in f.title)
     assert pixel.evidence[0].variant == "sha256(plain)"

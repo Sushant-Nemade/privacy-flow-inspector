@@ -11,11 +11,12 @@ from email.parser import BytesParser
 from email.policy import HTTP
 from urllib.parse import parse_qsl, unquote, urlsplit
 
-from privacy_flow_inspector.har import Request
+from privacy_flow_inspector.har import Request, inflate
 
 MAX_CARRIERS = 5000
 _MAX_DEPTH = 3
 _MAX_NESTED = 200_000
+_MAX_INFLATED = 4 * 1024 * 1024
 _IGNORED_HEADERS = {
     "accept",
     "accept-encoding",
@@ -33,6 +34,8 @@ _IGNORED_HEADERS = {
 }
 _BASE64 = re.compile(r"^[A-Za-z0-9+/_-]{16,}={0,2}$")
 _JWT = re.compile(r"^[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*$")
+# Socket.IO packets prefix JSON with a numeric type (42["event", ...]); SignalR ends records with 0x1E.
+_SOCKET_IO = re.compile(r"^\d{1,4}(?=[\[{])")
 
 
 @dataclass(frozen=True)
@@ -45,20 +48,22 @@ class Carrier:
     container: bool = False
 
 
-def _b64decode(value: str) -> str | None:
+def _b64decode(value: str) -> tuple[str, bool] | None:
+    """(text, was_compressed) for printable UTF-8 Base64 content, also when it wraps gzip/zlib."""
     padded = value + "=" * (-len(value) % 4)
     for decoder in (base64.urlsafe_b64decode, base64.b64decode):
         try:
             raw = decoder(padded)
         except (binascii.Error, ValueError):
             continue
+        inflated = inflate(raw, _MAX_INFLATED)
         try:
-            text = raw.decode("utf-8")
+            text = (inflated or raw).decode("utf-8")
         except UnicodeDecodeError:
             continue
         printable = sum(ch.isprintable() or ch in "\n\r\t" for ch in text)
         if text and printable / len(text) > 0.95:
-            return text
+            return text, inflated is not None
     return None
 
 
@@ -93,18 +98,19 @@ class _Builder:
         if _JWT.match(stripped):
             payload = _b64decode(stripped.split(".")[1])
             header = _b64decode(stripped.split(".")[0])
-            if payload and header and '"alg"' in header:
+            if payload and header and '"alg"' in header[0]:
                 try:
-                    claims = json.loads(payload)
+                    claims = json.loads(payload[0])
                 except ValueError:
                     claims = None
                 if isinstance(claims, dict):
                     self.walk(claims, f"{key}<jwt>", origin, True, depth + 1)
                     return
         if _BASE64.match(stripped) and not stripped.isdigit():
-            decoded_text = _b64decode(stripped)
-            if decoded_text is not None:
-                self.add(f"{key}<base64>", decoded_text, origin, True, depth + 1)
+            decoded = _b64decode(stripped)
+            if decoded is not None:
+                text, compressed = decoded
+                self.add(f"{key}<base64{'+gzip' if compressed else ''}>", text, origin, True, depth + 1)
                 return
         if stripped.startswith(("http://", "https://")) and "?" in stripped:
             try:
@@ -122,9 +128,9 @@ class _Builder:
                 self.add(f"{key}>{name}", inner_value, origin, encoded, depth + 1)
             return
         if "%" in stripped:
-            decoded = unquote(stripped)
-            if decoded != stripped:
-                self.add(f"{key}<url-decoded>", decoded, origin, encoded, depth + 1)
+            unquoted = unquote(stripped)
+            if unquoted != stripped:
+                self.add(f"{key}<url-decoded>", unquoted, origin, encoded, depth + 1)
 
     def walk(self, node: object, key: str, origin: str, encoded: bool, depth: int) -> None:
         if isinstance(node, dict):
@@ -165,7 +171,16 @@ def _body(request: Request) -> _Builder:
                     text = payload.decode("utf-8", "replace")
                     builder.add(str(name), text, text, False)
     else:
-        builder.add("$", body, body, False)
+        key = f"$<{request.body_encoding}>" if request.body_encoding else "$"
+        builder.add(key, body, body, request.body_encoding is not None)
+    return builder
+
+
+def _websocket(request: Request) -> _Builder:
+    builder = _Builder("websocket")
+    for position, message in enumerate(request.ws_sent):
+        text = _SOCKET_IO.sub("", message.rstrip("\x1e"), count=1)
+        builder.add(f"message[{position}]", text, message, False)
     return builder
 
 
@@ -204,7 +219,7 @@ def carriers(request: Request) -> tuple[list[Carrier], bool]:
             continue
         headers.add(name, value, value, False)
 
-    for builder in (path, query, headers, cookies, _body(request)):
+    for builder in (path, query, headers, cookies, _body(request), _websocket(request)):
         found.extend(builder.items)
         truncated = truncated or builder.truncated
     return found, truncated

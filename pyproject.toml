@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "privacy-flow-inspector"
-version = "0.2.0"
+version = "0.3.0"
 description = "Local privacy gate for recorded web traffic: which personal data leaves the browser, to whom, with redacted evidence."
 readme = "README.md"
 license = "MIT"
@@ -66,6 +66,7 @@ include = [
     "SECURITY.md",
     "LICENSE",
 ]
+exclude = ["examples/playwright-node/node_modules", "examples/playwright-node/test-results"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

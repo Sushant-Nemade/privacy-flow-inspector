@@ -402,6 +402,22 @@ def _pattern(needles: set[str]) -> re.Pattern[str] | None:
     return re.compile("|".join(re.escape(n) for n in usable), re.IGNORECASE) if usable else None
 
 
+REDACTED_BODY = "[REDACTED: encoded or binary content removed by privacy-flow-inspector]"
+
+
+def _opaque_body(post: dict[str, Any], headers: object) -> bool:
+    text = post.get("text")
+    if post.get("encoding") == "base64" or not isinstance(text, str):
+        return True
+    encoded = isinstance(headers, list) and any(
+        isinstance(h, dict)
+        and str(h.get("name", "")).lower() == "content-encoding"
+        and str(h.get("value", "")).strip().lower() not in ("", "identity")
+        for h in headers
+    )
+    return encoded or text[:2] in ("\x1f\x8b", "\x78\x9c", "\x78\x01", "\x78\xda") or "\ufffd" in text
+
+
 def redact_har(source: Path, target: Path, needles: set[str]) -> None:
     """Write a copy of the HAR without detected values, credentials, cookies or response bodies."""
     document = json.loads(source.read_text(encoding="utf-8-sig"))
@@ -435,9 +451,22 @@ def redact_har(source: Path, target: Path, needles: set[str]) -> None:
             scrub_pairs(request.get("cookies"), always=True)
             post = request.get("postData")
             if isinstance(post, dict):
-                if "text" in post:
+                if "text" in post and _opaque_body(post, request.get("headers")):
+                    # Text search cannot see inside compressed or base64 data, so the body is removed.
+                    post["text"] = REDACTED_BODY
+                    post.pop("encoding", None)
+                elif "text" in post:
                     post["text"] = scrub(post["text"])
                 scrub_pairs(post.get("params"))
+        messages = entry.get("_webSocketMessages")
+        if isinstance(messages, list):
+            for message in messages:
+                if not isinstance(message, dict) or "data" not in message:
+                    continue
+                if message.get("type") == "send" and message.get("opcode") != 2:
+                    message["data"] = scrub(message["data"])
+                else:
+                    message["data"] = REDACTED_BODY
         response = entry.get("response")
         if isinstance(response, dict):
             scrub_pairs(response.get("headers"))

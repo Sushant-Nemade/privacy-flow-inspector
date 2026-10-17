@@ -3,6 +3,28 @@
 All notable changes are recorded here. The project follows [Semantic Versioning](https://semver.org/);
 while the major version is 0, minor releases may change behaviour.
 
+## [0.3.0] - 2026-10-18
+
+### Added
+
+- WebSocket messages sent by the page, read from Chrome DevTools' `_webSocketMessages` export.
+  Socket.IO and SignalR framing is removed before JSON decoding; binary messages are decoded when
+  they hold text or gzip/zlib data. Received messages are not inspected.
+- gzip and deflate request bodies are decoded when the recorder kept the bytes (Base64 `postData`
+  or Latin-1 text); Base64 values that wrap gzip data (for example `H4sI...`) are decoded too and
+  labelled `<base64+gzip>` in evidence keys. Decompression is size-limited.
+- Coverage gaps: `websocket-not-recorded` (blocking for third-party sockets, a note for first-party
+  ones), `websocket-binary`, and a blocking `body-unreadable` for Brotli/zstd bodies, bodies stored
+  lossily (as Playwright does for gzip) and invalid Base64.
+- `examples/playwright-node`: a Playwright Test fixture that records one HAR per test with request
+  bodies and WebSocket messages, run in CI through the action.
+- The fictional demo adds a support chat over WebSocket and a gzip-compressed replay batch.
+
+### Changed
+
+- The redacted HAR removes compressed or Base64 request bodies, binary WebSocket messages and
+  received WebSocket messages entirely, because text search cannot see inside them.
+
 ## [0.2.0] - 2026-10-15
 
 ### Added
@@ -52,6 +74,7 @@ First public release.
 - Binary payloads (protobuf, compressed bodies) are not decoded.
 - Findings are technical evidence for a privacy review, not legal advice.
 
+[0.3.0]: https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.2.0
 [0.1.1]: https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.1.0

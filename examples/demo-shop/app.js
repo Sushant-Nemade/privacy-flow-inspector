@@ -72,5 +72,25 @@ document.getElementById("signup").addEventListener("submit", async (event) => {
     body: JSON.stringify({ iban: form.iban, email: form.email }),
   });
 
+  // Support chat widget: WebSocket with Socket.IO framing that identifies the visitor by email.
+  await new Promise((resolve) => {
+    const socket = new WebSocket("wss://live.chat-widget.test/socket.io/?EIO=4&transport=websocket");
+    socket.onopen = () => {
+      socket.send(`42${JSON.stringify(["identify", { visitor: { email: form.email } }])}`);
+      setTimeout(() => { socket.close(); resolve(); }, 200);
+    };
+    socket.onerror = () => resolve();
+  });
+
+  // Session replay batch: the form snapshot is gzip-compressed, then Base64-encoded inside JSON.
+  const gzip = new Blob([JSON.stringify({ input: { email: form.email } })]).stream()
+    .pipeThrough(new CompressionStream("gzip"));
+  const packed = btoa(String.fromCharCode(...new Uint8Array(await new Response(gzip).arrayBuffer())));
+  await send("https://ingest.replay-vendor.test/v1/batch", {
+    method: "POST",
+    headers: json,
+    body: JSON.stringify({ events: 1, payload: packed }),
+  });
+
   document.getElementById("status").textContent = "Account created (demo).";
 });

@@ -78,6 +78,53 @@ jobs:
           PFI_RECORD: "1"
         run: uv run --frozen --extra dev pytest -q tests/test_record.py
 
+  node-example:
+    name: Playwright Test (Node) example with the action
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: examples/playwright-node
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.13"
+      - name: Install the pinned Playwright and Chromium
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Run the end-to-end test, recording HAR files with WebSocket messages
+        run: npx playwright test
+      - name: Privacy Flow Inspector
+        id: privacy
+        uses: ./
+        with:
+          har: examples/playwright-node/test-results/**/*.har
+          config: examples/pfi.toml
+          fail-on: never
+      - name: Expect the same data flows as the Python recording
+        working-directory: .
+        env:
+          DECISION: ${{ steps.privacy.outputs.decision }}
+        run: |
+          test "$DECISION" = "reject"
+          python - <<'EOF'
+          import json, pathlib, sys
+          sys.path.insert(0, "tests")
+          from test_engine import EXPECTED
+          report = json.loads(pathlib.Path("privacy-flow-reports/report.json").read_text(encoding="utf-8"))
+          found = {(f["rule_id"], f["recipient"], f["channel"], f["severity"],
+                    "allowed" if f["allowed_reason"] else "open") for f in report["findings"]}
+          assert found == EXPECTED, (EXPECTED - found, found - EXPECTED)
+          assert not [g for g in report["coverage_gaps"] if g["blocking"]], report["coverage_gaps"]
+          print(report["summary"])
+          EOF
+
   dogfood:
     needs: verify
     strategy:

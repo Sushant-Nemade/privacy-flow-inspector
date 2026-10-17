@@ -48,7 +48,7 @@ def test_redacted_har_stays_a_valid_har_without_secrets(tmp_path: Path) -> None:
     output.redact_har(DEMO_HAR, target, result.redactions["demo-shop.har"])
     document = json.loads(target.read_text(encoding="utf-8"))
     entries = document["log"]["entries"]
-    assert len(entries) == 10
+    assert len(entries) == 12
     for item in entries:
         assert "text" not in item["response"]["content"]
         for header in item["request"]["headers"]:
@@ -81,7 +81,7 @@ def test_sarif_and_json_structure(tmp_path: Path) -> None:
     assert sum(1 for r in run["results"] if "suppressions" in r) == 2
     document = json.loads(output.to_json(report))
     assert document["summary"]["allowed"] == 2
-    assert document["summary"]["third_party_recipients"] == 6
+    assert document["summary"]["third_party_recipients"] == 8
 
 
 def test_markdown_escapes_untrusted_values() -> None:

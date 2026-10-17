@@ -14,12 +14,12 @@ into first and third parties, applies your policy and gives an **APPROVE / REVIE
 for CI. It works offline. Reports contain **no raw personal data**, and it can export a redacted HAR
 that is safe to attach to a ticket.
 
-> Status: [v0.2.0](https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.2.0), an alpha
+> Status: [v0.3.0](https://github.com/Sushant-Nemade/privacy-flow-inspector/releases/tag/v0.3.0), an alpha
 > release on [PyPI](https://pypi.org/project/privacy-flow-inspector/) and the
 > [GitHub Marketplace](https://github.com/marketplace/actions/privacy-flow-inspector).
-> Tested on Windows, Linux and macOS, including a demo that CI
-> re-records with real Chromium on every run. Findings are technical evidence for a privacy review,
-> not legal advice or a GDPR compliance verdict.
+> Tested on Windows, Linux and macOS. CI re-records a demo with real Chromium from both Python and a
+> Node.js Playwright Test suite on every run and requires identical findings. Findings are technical
+> evidence for a privacy review, not legal advice or a GDPR compliance verdict.
 
 Part of a small **software trust toolkit** with
 [Software Intake Gatekeeper](https://github.com/Sushant-Nemade/software-intake-gatekeeper): the
@@ -35,7 +35,8 @@ same decision model, policy style and report formats.
 | QA and end-to-end tests | The Playwright suite runs on every pull request | The build fails if the test user's email reaches an analytics domain |
 | Data protection officer | Before a release, a DPIA or a records-of-processing update | A data-flow map of which data categories go to which recipients |
 | Healthcare and patient portals | Checking for health-data leaks | Alerts when diagnosis fields or German health-insurance numbers reach third parties |
-| Marketing / tag-manager changes | A new pixel or session-replay script is added | Detection of hashed emails and Base64-wrapped form snapshots |
+| Marketing / tag-manager changes | A new pixel or session-replay script is added | Detection of hashed emails and Base64-wrapped or gzip-compressed form snapshots |
+| Support chat and real-time widgets | A chat or collaboration widget is embedded | Personal data in WebSocket messages, including Socket.IO and SignalR framing |
 
 ## Quick start
 
@@ -56,13 +57,34 @@ input error. `privacy-flow-inspector rules` lists the detectors.
 
 | Tool | How |
 |---|---|
-| Chrome / Edge DevTools | Network panel, then **Export HAR**. The sanitized export leaves out cookies and `Authorization`; those then cannot be checked. |
+| Chrome / Edge DevTools | Network panel, then **Export HAR**. Includes WebSocket messages. The sanitized export leaves out cookies and `Authorization`; those then cannot be checked. |
 | Firefox DevTools | Network panel, then **Save All As HAR**. |
+| Playwright Test (Node) | Use the [privacy fixture](https://github.com/Sushant-Nemade/privacy-flow-inspector/tree/main/examples/playwright-node): one HAR per test, with request bodies and WebSocket messages |
 | Playwright (Python) | `browser.new_context(record_har_path="session.har", record_har_content="embed")` |
-| Playwright (Node) | `browser.newContext({ recordHar: { path: "session.har", content: "embed" } })` |
+| Playwright (Node, plain) | `browser.newContext({ recordHar: { path: "session.har", content: "embed" } })` |
 
 Use `content="embed"`: with `omit` or `attach`, Playwright leaves **request bodies** out of the HAR.
 The inspector detects this and reports a blocking `body-not-recorded` gap instead of approving.
+Playwright also never writes **WebSocket messages** into HAR files; the inspector reports a
+`websocket-not-recorded` gap for such sockets (blocking for third parties), and the Node fixture
+above records them.
+
+### Playwright Test (Node) in CI
+
+[examples/playwright-node](https://github.com/Sushant-Nemade/privacy-flow-inspector/tree/main/examples/playwright-node)
+is a ready-to-copy setup. Import `test` from `privacy-fixture.ts` instead of `@playwright/test`;
+every test then leaves `test-results/<test>/network.har`, which the action scans:
+
+```ts
+import { test, expect } from "./privacy-fixture";
+
+test("signup", async ({ page }) => {
+  await page.goto("https://staging.example.com/signup");
+  // ... fill the form with your test persona ...
+});
+```
+
+CI runs this example on every push and requires the same findings as the Python recording.
 
 ### Try the fictional demo
 
@@ -80,9 +102,9 @@ Real output:
 ```text
 Decision: REJECT
   - 6 data flow(s) at or above high.
-  - 4 data flow(s) between low and high.
-Requests: 10 | recipients: 7 (6 third-party) | personas: 3
-Findings: critical 1, high 5, medium 2, low 2, info 4
+  - 6 data flow(s) between low and high.
+Requests: 12 | recipients: 9 (8 third-party) | personas: 3
+Findings: critical 1, high 5, medium 4, low 2, info 4
   [CRITICAL] PFI-PERSONA          Test user email sent to legacy-ads.test via query
   [HIGH    ] PFI-PRECISE-LOCATION Precise location sent to geo-widgets.test via query
   [HIGH    ] PFI-IBAN             IBAN sent to payments-processor.test via body (allowed)
@@ -104,6 +126,8 @@ The Markdown summary contains a data-flow map:
 | `pixel-tracker.test` Ad pixel (fictional) | **third** | HIGH |  |  |  |  |
 | `session-cam.test` Session replay (fictional) | **third** |  |  |  | HIGH |  |
 | `analytics-vendor.test` Analytics vendor (fictional) | **third** | MED | MED |  |  |  |
+| `chat-widget.test` Support chat (fictional) | **third** | MED |  |  |  |  |
+| `replay-vendor.test` Session replay batch (fictional) | **third** | MED |  |  |  |  |
 | `shop.example` | first | info | info |  | LOW |  |
 
 What the demo shows:
@@ -111,6 +135,10 @@ What the demo shows:
 - An email **inside a nested page URL** sent over **plain HTTP**: critical.
 - A session-replay vendor receiving a **Base64-wrapped form** with a health-insurance number and an
   ICD-10 diagnosis: health data, a GDPR Article 9 special category.
+- A support chat that identifies the visitor by email in a **WebSocket message** with Socket.IO
+  framing (evidence `message[0]<json>[1].visitor.email`).
+- A replay batch whose payload is **gzip-compressed, then Base64-encoded** inside JSON (evidence
+  `$<json>.payload<base64+gzip><json>.input.email`).
 - A payment processor marked **allowed** because the config lists it as a contracted processor.
 - First-party traffic still shows up (as info/low) so reviewers see the whole picture.
 
@@ -119,7 +147,7 @@ What the demo shows:
 ```mermaid
 flowchart LR
     H[HAR files] --> P[Bounded HAR parser]
-    P --> X[Value extraction: URL, query, headers, cookies, JSON, form, multipart, Base64, JWT, nested URLs]
+    P --> X[Value extraction: URL, query, headers, cookies, JSON, form, multipart, WebSocket messages, Base64, gzip/deflate, JWT, nested URLs]
     X --> D1[Test-persona matching incl. hashes]
     X --> D2[Checked detectors]
     D1 & D2 --> R[Recipient: eTLD+1, first/third party]
@@ -226,7 +254,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      # ... run your Playwright tests with recordHar content "embed" into test-results/ ...
+      # ... run your Playwright tests into test-results/; see examples/playwright-node ...
       - name: Privacy Flow Inspector
         id: privacy
         uses: Sushant-Nemade/privacy-flow-inspector@v0
@@ -260,15 +288,19 @@ requests. Do not upload raw HAR files as workflow artifacts; upload the redacted
 - **No raw values in reports**: each value appears only as a short mask (`ja********om`) and a keyed
   fingerprint, so the same value can be correlated within one report without being revealed.
 - **Redacted HAR export**: detected values and their encoded forms are replaced, `Authorization`,
-  `Cookie` and `Set-Cookie` values are removed, and response bodies are dropped. The file is
-  re-checked and not written if anything would remain.
-- **Bounded parsing** of untrusted input, and escaping of all capture-derived text in Markdown.
+  `Cookie` and `Set-Cookie` values are removed, and response bodies are dropped. Compressed or
+  Base64 request bodies, binary WebSocket messages and received WebSocket messages are removed
+  entirely, because text search cannot see inside them. The file is re-checked and not written if
+  anything would remain.
+- **Bounded parsing** of untrusted input, including size-limited decompression, and escaping of all
+  capture-derived text in Markdown.
 
 ## Verification
 
 | Check | How |
 |---|---|
-| Real browser traffic | CI re-records the demo with Playwright Chromium on every run and requires exactly the expected data flows |
+| Real browser traffic | CI re-records the demo with Playwright Chromium on every run, once from Python and once from a Node.js Playwright Test suite scanned by the action, and requires exactly the expected data flows from both |
+| Recorder formats | WebSocket messages follow Chrome DevTools' `_webSocketMessages` export (checked against the DevTools source). A real Playwright capture showed it stores gzip request bodies lossily and no WebSocket messages; both are now reported as coverage gaps instead of passing silently |
 | Real website | A Chromium capture of the author's live portfolio site showed APPROVE with no findings, while the page loaded Google Fonts. That gap led to the third-party recipient list and the opt-in connection rule; after the fonts were self-hosted, the same check with the rule enabled shows APPROVE with zero third parties |
 | Leak-free outputs | A test checks that no persona value, nor any of its encoded or hashed forms, appears in the JSON, SARIF, Markdown, text or redacted HAR |
 | Checksums | Steuer-ID, IBAN and Luhn compared with `python-stdnum` on 100,000+ random numbers. The only difference is numbers with three identical digits in a row, which the official Steuer-ID rules forbid and `stdnum` does not check. KVNR uses the published example `A123456780`. |
@@ -278,9 +310,11 @@ requests. Do not upload raw HAR files as workflow artifacts; upload the redacted
 
 ## Limitations
 
-- Only what the HAR contains is checked. WebSocket messages, service-worker traffic and requests
-  made before recording started may be missing.
-- Binary or compressed payloads (protobuf, gzip in JSON) are not decoded.
+- Only what the HAR contains is checked. Service-worker traffic and requests made before recording
+  started may be missing; WebSocket messages need a recorder that stores them (see above).
+- gzip and deflate bodies are decoded when the recorder kept the bytes (Base64 `postData`, or
+  Latin-1 text). Brotli, zstd and lossily stored bodies are reported as `body-unreadable` gaps.
+  Binary formats such as protobuf are not decoded.
 - Field-name detectors depend on meaningful field names. The test-persona detector does not.
 - Domains are grouped by registrable domain; a vendor serving from your own subdomain (CNAME
   cloaking) looks first-party. Name it under `[labels]` and review it.
@@ -295,6 +329,9 @@ uv sync --frozen --extra dev
 uv run --frozen --extra dev pytest -q
 uv run --frozen --extra dev playwright install chromium   # optional, for the recording test
 $env:PFI_RECORD = "1"; uv run --frozen --extra dev pytest -q tests/test_record.py
+
+# Node.js example (Node 20+):
+cd examples/playwright-node; npm ci; npx playwright install chromium; npx playwright test
 ```
 
 ## License

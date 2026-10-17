@@ -65,7 +65,7 @@ def _message(match: Match, finding_first_party: bool, channel: str, scheme: str,
     parts = [
         f"{DETECTORS[match.detector].title if match.detector != 'PFI-PERSONA' else match.label} "
         f"({match.category.value}) was sent to {'first-party' if finding_first_party else 'third-party'} "
-        f"recipient {recipient} in the request {channel}."
+        f"recipient {recipient} in {'a WebSocket message' if channel == 'websocket' else f'the request {channel}'}."
     ]
     if match.variant not in ("plain", "lowercase", "field value"):
         parts.append(f"It was transmitted as {match.variant}.")
@@ -115,6 +115,22 @@ def inspect(
             )
         )
     recipients = Recipients(first_party, config.labels)
+    unrecorded = [r for r in requests if r.websocket and not r.ws_recorded]
+    for third_party, blocking in ((True, True), (False, False)):
+        sockets = [r for r in unrecorded if recipients.is_first_party(r.host) != third_party]
+        if sockets:
+            hosts = ", ".join(sorted({r.host for r in sockets})[:5])
+            gaps.append(
+                Gap(
+                    "websocket-not-recorded",
+                    f"{len(sockets)} {'third' if third_party else 'first'}-party WebSocket connection(s) "
+                    f"({hosts}) have no recorded messages; data sent over them was not checked. Playwright "
+                    "does not record WebSocket messages; export the HAR from Chrome or Edge DevTools to "
+                    "include them.",
+                    sockets[0].har,
+                    blocking=blocking,
+                )
+            )
     matcher = PersonaMatcher(list(config.personas))
     if not config.personas:
         gaps.append(
