@@ -305,6 +305,9 @@ runs it with the published actions against both fictional demos.
 
 ## Verification
 
+The [real-world case study](https://github.com/Sushant-Nemade/software-intake-gatekeeper/blob/main/docs/real-world-case-study.md)
+describes the tests on real software, including the author's own website, and the fixes they led to.
+
 | Check | How |
 |---|---|
 | Real browser traffic | CI re-records the demo with Playwright Chromium on every run, once from Python and once from a Node.js Playwright Test suite scanned by the action, and requires exactly the expected data flows from both |
