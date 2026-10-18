@@ -282,6 +282,14 @@ Outputs: `decision` and `sarif`. The Markdown summary is added to the job summar
 hash-pinned dependencies in a private virtual environment, needs no token and makes no network
 requests. Do not upload raw HAR files as workflow artifacts; upload the redacted copies instead.
 
+### Use it together with Software Intake Gatekeeper
+
+Run both actions in one job to check **what an app sends out** and **what is inside it**, then gate
+on both decisions. The recipe is in the Gatekeeper README under
+[Use it together with Privacy Flow Inspector](https://github.com/Sushant-Nemade/software-intake-gatekeeper#use-it-together-with-privacy-flow-inspector);
+a [workflow](https://github.com/Sushant-Nemade/software-intake-gatekeeper/blob/main/.github/workflows/toolkit.yml)
+runs it with the published actions against both fictional demos.
+
 ## Privacy by design
 
 - **Offline**: no network access and no telemetry.
